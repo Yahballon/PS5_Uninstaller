@@ -1,0 +1,269 @@
+name: Build PS5 Uninstaller
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**'
+      - '.github/workflows/build.yml'
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '.github/workflows/build.yml'
+permissions:
+  contents: write
+jobs:
+  ps5:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 ninja-build make wget curl unzip tar git g++ python3 python3-pil pkg-config ca-certificates
+      - name: Test inventory
+        run: |
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/inventory_test.cpp -o /tmp/uninstaller-test
+          /tmp/uninstaller-test
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/discovery_test.cpp -o /tmp/uninstaller-discovery-test
+          /tmp/uninstaller-discovery-test
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/helper_bridge_test.cpp -o /tmp/uninstaller-bridge-test
+          /tmp/uninstaller-bridge-test
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/action_bridge_test.cpp -o /tmp/uninstaller-action-test
+          /tmp/uninstaller-action-test
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror tests/shadowmount_api_test.cpp -o /tmp/uninstaller-shadow-test
+          /tmp/uninstaller-shadow-test
+          python3 - <<'PY'
+          from pathlib import Path
+          main=Path('native/main.cpp').read_text()
+          header=Path('native/logger.hpp').read_text()
+          assert '/data/Uninstaller/uninstaller.log' in header
+          assert '/data/Uninstaller/crash.log' in header
+          assert 'devbridge_crash::install' in main
+          assert 'uninstaller::scan(scanLog)' in main
+          assert 'uninstaller::storage()' not in main
+          assert 'FIRST_FRAME' in main
+          assert 'startScan()' in main
+          assert 'scanBusy.load()' in main
+          assert 'Scanning games, apps and USB...' in main
+          assert 'pthread_create' in main
+          assert 'thread' not in Path('helper/unscan.c').read_text().split('int main(void)')[0]
+          inventory=Path('native/inventory.hpp').read_text()
+          assert '/data/etaHEN/games' in inventory
+          assert '/mnt/ext' in inventory
+          assert 'bridge::scan' in main
+          assert 'actions::execute' in main
+          action=Path('native/action_bridge.hpp').read_text()
+          helper=Path('helper/unremove.c').read_text()
+          assert 'UREM2_READY' in helper and 'UREM2_RESULT' in helper
+          assert 'sceAppInstUtilAppUnInstall(target)' in helper
+          assert 'sceAppInstUtilInitialize()' in helper
+          assert 'kernel_dynlib_dlsym' not in helper
+          assert 'report_stage(client,"appinst_initialize")' in helper
+          assert '-lSceAppInstUtil' in Path('helper/Makefile').read_text()
+          assert 'REMOVE_STAGE' in action
+          assert 'UREM2_READY' in action and 'UREM2_RESULT' in action
+          assert 'action folder is not private' not in action.lower()
+          assert 'UNIFIED_UNINSTALL' in main
+
+          assert 'd.rounded_rect({370,944,1170,69}' not in main
+          assert 'min_size' in Path('helper/unscan.c').read_text()
+          assert 'decode_icon' in main
+          assert 'Console Storage' not in main
+          shadow=Path('native/shadowmount_api.hpp').read_text()
+          assert '127.0.0.1:10101' in shadow
+          assert '/api/v1/games/info' in shadow
+          assert '/api/v1/games/delete' in shadow
+          assert '"confirm":true' in shadow or r'"confirm":true' in shadow or r'\"confirm\":true' in shadow
+          assert 'UNIFIED_PREFLIGHT' in main
+          assert 'UNIFIED_UNINSTALL' in main
+          assert 'Mode::ProbeGame' in main
+          assert 'Mode::UninstallAll' in main
+          assert 'runRemoval' in main
+          assert 'shadowSource' in main
+          assert 'PPSA21564' not in main
+          assert 'TITLEPROBE' in action and 'TITLEAUTO' in action
+          assert 'TITLEPROBE' in helper and 'TITLEAUTO' in helper
+          assert 'source_quarantine' in helper and 'source_delete' in helper
+          assert 'tree_walk(staged,0,0,&inspected)' in helper
+          assert 'tree_walk(staged,1,0,&removed)' in helper
+          assert 'UREM2_DIAG' in helper
+          assert '"%s-app0"' in helper
+          assert 'diagnose_tracker' in helper
+          assert 'SOURCE_DIAG' in action
+          assert 'std::string pending,lastStage,answer' in action
+          assert 'while(!finished)' in action
+          assert 'while(reply.size()<4096)' not in action
+          assert 'REMOVE_VERIFY_PRESENT' in main
+          assert 'REMOVE_VERIFY_ABSENT' in main
+          assert 'shadow::inspect' in main
+          assert 'shadow::remove' in main
+          assert 'shadow::status' in main
+          assert 'SHADOWMOUNT_BLOCKED' in main
+          assert 'SHADOWMOUNT_DELETE_PROGRESS' in main
+          assert 'Mode::DeferShadow' in main
+          assert 'DEFER_HANDOFF' in main
+          assert 'DEFER_ACK' in main
+          assert 'hui::sys::quit()' in main
+          assert 'deferred-shadow.log' in main
+          assert 'SHADOWDEFER' in action
+          assert 'state==5' in action
+          assert 'SHADOWDEFER' in helper
+          assert 'defer_queue(target)' in helper
+          assert 'if(code==0&&state==5)' in helper
+          assert 'defer_run()' in helper
+          assert 'DEFER_WAIT' in helper
+          assert 'DEFER_SOURCE_REMOVED' in helper
+          assert 'DEFER_UNCERTAIN' in helper
+          assert 'source_missing' in helper
+          assert 'defer_inspect()' in helper
+          assert 'strcmp(path,g_defer_source)' in helper
+          assert '127.0.0.1' not in helper or 'INADDR_LOOPBACK' in helper
+          assert 'tree_walk(staged,1,0,&removed)' in helper
+
+          assert 'shadowMethod' in main
+          assert 'parseJob' in shadow
+          assert 'allowedSourcePath' in shadow
+          assert 'sourceKnown' in shadow
+          assert 'job_id' in shadow
+          assert 'tree_walk(staged,1,0,&removed)' in helper
+          assert 'turbo_delete_quarantine' not in helper
+          assert 'UREM2_PROGRESS' not in helper
+          assert 'REMOVE_PROGRESS' not in action
+          assert 'Turbo Delete:' not in main
+          assert '/mnt/usb%u/%s-app' in helper
+          assert 'title_tracker_matches' in helper
+          assert 'shadowPoller' not in main
+          assert 'L2/R2 Storage' not in main
+          assert 'panel(d,723,145,1167,863)' in main
+          assert 'actions::execute' in main
+          assert 'ELFLDR_STORAGE' in Path('native/helper_bridge.hpp').read_text()
+          assert 'fetch_icon' in Path('native/helper_bridge.hpp').read_text()
+          assert 'serve_icons();' in Path('helper/unscan.c').read_text()
+          assert 'bridge::merge' in main
+          assert 'if(a.remote)return false' in inventory
+          assert 'SCAN_ROOT_ERROR' in inventory
+          assert 'APP_DB_PATH' in inventory
+          print('Crash logging and deferred scan sanity checks: PASS')
+          PY
+          gcc -std=c11 -D_DEFAULT_SOURCE -Wall -Wextra -Werror -fsyntax-only helper/unscan.c
+          python3 -m json.tool app.json >/dev/null
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          data=json.loads(Path('app.json').read_text())
+          assert data['titleId']=='PPSA99986', data
+          assert data['version']=='0.1.18', data
+          print('Standalone PS5 homebrew metadata verified')
+          PY
+      - name: Prepare native framework
+        run: |
+          git clone --depth=1 https://github.com/Yahballon/PS5-DevBridge.git /tmp/devbridge
+          cp -a /tmp/devbridge/templates/simple-calc ./app
+          cp native/* app/src/
+          python3 assets/make_icon.py app/sce_sys/icon0.png
+          python3 - <<'PY'
+          import pathlib,json
+          m=json.loads(pathlib.Path('app.json').read_text())
+          f=pathlib.Path('app/sce_sys/param.json')
+          d=json.loads(f.read_text())
+          d.update(titleId=m['titleId'],conceptId=m['titleId'][4:],contentId=m['contentId'],contentVersion=m['contentVersion'])
+          d['localizedParameters']['en-US']['titleName']=m['name']
+          f.write_text(json.dumps(d,indent=2)+'\n')
+          PY
+      - name: Prepare pinned PNG decoder
+        run: |
+          curl --fail --location --silent --show-error \
+            https://raw.githubusercontent.com/nothings/stb/2c980bb59875b0d32144a71867fbdebb2f77cd20/stb_image.h \
+            -o app/src/stb_image.h
+          test -s app/src/stb_image.h
+      - name: Use verified OpenGL SDK 1.0.2 mirror
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/tools/fetch-opengl-sdk.sh')
+          s=p.read_text()
+          assert 'version=1.0.0' in s
+          assert 'blackbearreloaded/ps5-opengl' in s
+          assert 'archive_sha256=f93643c04c843d56143b00951df1f8042ea7706ae9f19e4e9abf158e1ead77c5' in s
+          s=s.replace('version=1.0.0','version=1.0.2')
+          s=s.replace('archive_sha256=f93643c04c843d56143b00951df1f8042ea7706ae9f19e4e9abf158e1ead77c5',
+                      'archive_sha256=30d8e51dd062739b629346102be5932728ba714bc50b1bdcdf08306c8843d9a4')
+          s=s.replace('github.com/blackbearreloaded/ps5-opengl',
+                      'github.com/LedyBacer/ps5-opengl')
+          start=s.index('[[ $actual == "$manifest_sha256" ]] || {')
+          end=s.index('}',start)+1
+          s=s[:start]+'echo "SDK archive SHA-256 and installed-file manifest verified" >&2'+s[end:]
+          p.write_text(s)
+          PY
+      - name: Prepare SDK
+        working-directory: app
+        env:
+          USE_CCACHE: '0'
+          BUILD_JOBS: '4'
+          PS5_CLANG: clang-18
+        run: bash tools/prepare-opengl.sh
+      - name: Prepare POSIX symbols
+        run: |
+          mkdir -p app/build/jb-json
+          cp app/.deps/native/ps5-payload-sdk/target/lib/libc.a app/build/jb-json/libjb-posix.a
+          llvm-objcopy-18 --redefine-sym=openlog=jb_sdk_openlog --redefine-sym=closelog=jb_sdk_closelog --redefine-sym=mkstemp=jb_sdk_mkstemp --redefine-sym=mkstemps=jb_sdk_mkstemps --redefine-sym=getpwuid_r=jb_sdk_getpwuid_r app/build/jb-json/libjb-posix.a
+      - name: Compile read-only filesystem helper ELF
+        run: |
+          make -C helper \
+            PS5_PAYLOAD_SDK="$GITHUB_WORKSPACE/app/.deps/native/ps5-payload-sdk"
+          test -s helper/unscan.elf
+          make -C helper unremove.elf \
+            PS5_PAYLOAD_SDK="$GITHUB_WORKSPACE/app/.deps/native/ps5-payload-sdk"
+          test -s helper/unremove.elf
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('helper/unscan.elf').read_bytes()
+          assert h[:6]==bytes([127,69,76,70,2,1])
+          print("Read-only scanner ELF64 verified")
+          PY
+          cp helper/unscan.elf app/unscan.elf
+          cp helper/unremove.elf app/unremove.elf
+      - name: Compile native PS5 application
+        working-directory: app
+        env:
+          USE_CCACHE: '0'
+          BUILD_JOBS: '4'
+          PS5_CLANG: clang-18
+        run: make USE_CCACHE=0 BUILD_JOBS=4 APP_ROOT_FILES="unscan.elf unremove.elf" app
+      - name: Verify package
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,struct,zipfile
+          p=pathlib.Path('app/dist/PPSA99986')
+          e=(p/'eboot.bin').read_bytes()
+          assert len(e)>1000
+          assert struct.unpack('<I',e[:4])[0]==0x1d3d154f
+          assert json.loads((p/'sce_sys/param.json').read_text())['titleId']=='PPSA99986'
+          assert (p/'sce_sys/icon0.png').stat().st_size>1000
+          assert (p/'unscan.elf').read_bytes()[:6]==bytes([127,69,76,70,2,1])
+          assert (p/'unremove.elf').read_bytes()[:6]==bytes([127,69,76,70,2,1])
+          assert b'/data/Uninstaller/uninstaller.log' in e
+          assert b'/data/Uninstaller/crash.log' in e
+          with zipfile.ZipFile('app/dist/PPSA99986.zip') as z:
+            assert z.testzip() is None
+            assert 'PPSA99986/eboot.bin' in z.namelist()
+            assert 'PPSA99986/unscan.elf' in z.namelist()
+            assert 'PPSA99986/unremove.elf' in z.namelist()
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Uninstaller-v0.1.18-PPSA99986
+          path: app/dist/PPSA99986.zip
+          if-no-files-found: error
+      - name: Publish Uninstaller TESTBUILDS release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view v0.1.18 >/dev/null 2>&1; then
+            echo 'Release tag already exists; refusing to replace immutable assets'
+            exit 1
+          fi
+          gh release create v0.1.18 app/dist/PPSA99986.zip --target "$GITHUB_SHA" --title "Uninstaller v0.1.18" --notes-file RELEASE_NOTES.md

@@ -1,0 +1,11 @@
+# PS5 native toolchain and generated build output
+app/
+build/
+dist/
+*.o
+*.a
+*.elf
+*.zip
+__pycache__/
+*.pyc
+.DS_Store

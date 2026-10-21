@@ -12,9 +12,9 @@
 
 **by YAHBALLON**
 
-![Uninstaller UI on PS5](screenshots/1.png)
+![Uninstaller UI on PS5](screenshots/1.webp)
 
-*Actual PS5 dashboard screenshot: game / homebrew / USB PKG library, title artwork and one-click removal.*
+*Optimized preview of the PS5 dashboard screenshot: game / homebrew / USB PKG library, title artwork and one-click removal.*
 
 [**Download the latest release**](https://github.com/Yahballon/PS5_Uninstaller/releases/latest) · [**Builds**](https://github.com/Yahballon/PS5_Uninstaller/actions) · [**Report an issue**](https://github.com/Yahballon/PS5_Uninstaller/issues)
 
@@ -37,7 +37,7 @@
 
 ## 📸 Preview
 
-![Full-size Uninstaller screenshot](screenshots/1.png)
+![Full-size Uninstaller screenshot](screenshots/1.webp)
 
 The dashboard offers four categories: **All**, **Games**, **Homebrew** and **USB PKGs**. The selected item appears in the right-hand pane with its original cover artwork, title ID, version and location.
 
